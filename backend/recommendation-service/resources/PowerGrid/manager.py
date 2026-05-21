@@ -21,7 +21,11 @@ class PowerGridManager(BaseRecommendationManager):
         self.owl_file_path = os.path.join(
             script_dir, "ontology/Grid2onto_v2_3_1.owl"
         )
-        self.rl_agent_api_url = "http://192.168.208.61:5000/api/v1/recommendation"
+        self.rl_agent_api_url = os.environ.get(
+            "RL_AGENT_API_URL",
+            "https://interactiveagent.passerelle.irt-systemx.fr/api/v1/recommendation",
+        )
+        self.rl_agent_api_token = os.environ.get("RL_AGENT_API_TOKEN", "")
         super().__init__()
 
     def get_recommendation(self, request_data):
@@ -57,9 +61,13 @@ class PowerGridManager(BaseRecommendationManager):
             list[dict]: List of parade recommendations, empty on failure
         """
         try:
+            headers = {}
+            if self.rl_agent_api_token:
+                headers["Authorization"] = f"Bearer {self.rl_agent_api_token}"
             response = requests.post(
                 self.rl_agent_api_url,
                 json=request_data,
+                headers=headers,
                 timeout=30,
             )
             response.raise_for_status()
