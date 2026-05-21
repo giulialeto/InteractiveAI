@@ -1,3 +1,5 @@
+import { fetchCognitiveSnapshot } from '@/api/cognitive'
+import type { CognitiveSnapshot } from '@/api/cognitive'
 import type { Trace } from '@/types/services'
 
 type ExportFormat = 'json' | 'csv'
@@ -277,7 +279,7 @@ function eventMetadataHtml(data: unknown): string {
     const val = meta[key]
     if (key === 'event_context' && isLargeBlob(val) && typeof val === 'string') {
       const src = val.startsWith('data:') ? val : 'data:image/png;base64,' + val
-      rows.push('<tr><td style="padding:2px 10px 2px 0;color:#6b7280;font-size:13px;vertical-align:top">' + escapeHtml(key) + '</td><td><img src="' + src + '" style="max-width:100%;max-height:300px;border-radius:4px;margin-top:4px" alt="event context image"></td></tr>')
+      rows.push('<tr><td style="padding:2px 10px 2px 0;color:#6b7280;font-size:13px;vertical-align:top">' + escapeHtml(key) + '</td><td><img src="' + src + '" style="width:600px;max-width:100%;border-radius:4px;margin-top:4px;cursor:zoom-in" alt="event context image" onclick="this.style.width=this.style.width===\'100%\'?\'600px\':\'100%\'"></td></tr>')
     } else if (isLargeBlob(val)) {
       rows.push('<tr><td style="padding:2px 10px 2px 0;color:#6b7280;font-size:13px">' + escapeHtml(key) + '</td><td style="font-size:13px;color:#9ca3af;font-style:italic">[large data omitted]</td></tr>')
     } else {
@@ -285,6 +287,51 @@ function eventMetadataHtml(data: unknown): string {
     }
   }
   return '<table style="margin:4px 0 0 16px">' + rows.join('') + '</table>'
+}
+
+function cognitiveSnapshotHtml(data: unknown): string {
+  if (!data || typeof data !== 'object') return ''
+  const d = data as Record<string, unknown>
+  const snapshot = d.cognitive_snapshot as CognitiveSnapshot | null | undefined
+  if (!snapshot) return ''
+
+  const { cognitive_performance: cp, stress_state: ss, cognitive_performance_explainability: cpExp, stress_explainability: ssExp, error } = snapshot
+
+  let html = '<div style="margin:8px 0;padding:8px 12px;background:#f0f4ff;border-left:3px solid #6366f1;border-radius:4px;font-size:13px">'
+  html += '<div style="font-weight:600;color:#4338ca;margin-bottom:6px">&#129504; User\'s cognitive informations </div>'
+
+  if (error) {
+    html += '<div style="color:#dc2626;font-size:12px">&#9888; ' + escapeHtml(error) + '</div>'
+    html += '</div>'
+    return html
+  }
+
+  if (cp) {
+    html += '<div style="margin-bottom:3px"><span style="color:#6b7280">Cognitive Performance:</span> <b>' + escapeHtml(cp.value) + '</b> <span style="color:#9ca3af;font-size:11px">' + escapeHtml(cp.timestamp) + '</span></div>'
+  } else {
+    html += '<div style="margin-bottom:3px;color:#9ca3af">Cognitive Performance: —</div>'
+  }
+  if (ss) {
+    const stressed = ss.value === '1'
+    const stressLabel = stressed
+      ? '<span style="color:#dc2626;font-weight:600">&#9888; Stressed</span>'
+      : '<span style="color:#059669;font-weight:600">&#10003; Not stressed</span>'
+    html += '<div style="margin-bottom:3px"><span style="color:#6b7280">Stress State:</span> ' + stressLabel + ' <span style="color:#9ca3af;font-size:11px">' + escapeHtml(ss.timestamp) + '</span></div>'
+  } else {
+    html += '<div style="margin-bottom:3px;color:#9ca3af">Stress State: —</div>'
+  }
+  if (cpExp) {
+    html += '<div style="margin-bottom:3px"><span style="color:#6b7280">Cognitive Performance Explainability:</span> ' + escapeHtml(cpExp.value) + '</div>'
+  } else {
+    html += '<div style="margin-bottom:3px;color:#9ca3af">Cognitive Performance Explainability: —</div>'
+  }
+  if (ssExp) {
+    html += '<div><span style="color:#6b7280">Stress Explainability:</span> ' + escapeHtml(ssExp.value) + '</div>'
+  } else {
+    html += '<div style="color:#9ca3af">Stress Explainability: —</div>'
+  }
+  html += '</div>'
+  return html
 }
 
 function awardHtml(trace: StoredTrace): string {
@@ -380,6 +427,7 @@ function buildHtmlSummary(
     if (eventSummary) html += '<div style="font-size:13px;color:#6b7280;margin-bottom:4px">' + escapeHtml(eventSummary) + '</div>'
     html += '<div class="time">' + formatTime(evt.date) + '</div>'
     html += eventMetadataHtml(evt.data)
+    html += cognitiveSnapshotHtml(evt.data)
 
     // Decision time
     if (evt.decision_time_ms !== null) {
@@ -402,6 +450,7 @@ function buildHtmlSummary(
         } else if (inter.step === 'AWARD') {
           html += awardHtml(inter)
         }
+        html += cognitiveSnapshotHtml(inter.data)
         html += '</div>'
       }
       html += '</div>'
@@ -436,7 +485,7 @@ export function startTraceSession(userLogin?: string) {
   saveSession(createSession(userLogin))
 }
 
-export function recordTraceForSession(
+export async function recordTraceForSession(
   trace: { step: SessionStep; use_case: Trace['use_case']; data: unknown; date?: string }
 ) {
   const session = loadSession() ?? createSession()
@@ -462,11 +511,38 @@ export function recordTraceForSession(
     }
   }
 
+  // Enrich trace data with the latest cognitive snapshot.
+  // Always attached — on API failure the snapshot contains an `error` field.
+  let enrichedData: unknown = trace.data
+  try {
+    const cognitiveSnapshot = await fetchCognitiveSnapshot()
+    const base = (trace.data !== null && typeof trace.data === 'object')
+      ? (trace.data as Record<string, unknown>)
+      : {}
+    enrichedData = { ...base, cognitive_snapshot: cognitiveSnapshot }
+  } catch (err: unknown) {
+    // Should not happen (fetchCognitiveSnapshot never throws), but guard anyway
+    const message = err instanceof Error ? err.message : String(err)
+    const base = (trace.data !== null && typeof trace.data === 'object')
+      ? (trace.data as Record<string, unknown>)
+      : {}
+    enrichedData = {
+      ...base,
+      cognitive_snapshot: {
+        cognitive_performance: null,
+        stress_state: null,
+        cognitive_performance_explainability: null,
+        stress_explainability: null,
+        error: `Failed to get cognitive factors: ${message}`
+      }
+    }
+  }
+
   session.traces.push({
     date: trace.date ? String(trace.date) : new Date().toISOString(),
     use_case: trace.use_case,
     step: trace.step,
-    data: trace.data
+    data: enrichedData
   })
   saveSession(session)
 }
