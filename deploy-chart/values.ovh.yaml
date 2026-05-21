@@ -2,34 +2,34 @@ cabcontext:
   image:
     repository: harbor.irtsysx.fr/docker-proxy-cache/irtsystemx/interactiveai-cab-context
     pullPolicy: Always
-    tag: "1.2.2"
+    tag: "1.3.0"
 
 cabevent:
   image:
     repository: harbor.irtsysx.fr/docker-proxy-cache/irtsystemx/interactiveai-cab-event
     pullPolicy: Always
-    tag: "1.2.2"
+    tag: "1.3.0"
 
 cabhistoric:
   image:
     repository: harbor.irtsysx.fr/docker-proxy-cache/irtsystemx/interactiveai-cab-historic
     pullPolicy: Always
-    tag: "1.2.2"
+    tag: "1.3.0"
 
 cabrecommendation:
   image:
     repository: harbor.irtsysx.fr/docker-proxy-cache/irtsystemx/interactiveai-cab-recommendation
     pullPolicy: Always
-    tag: "1.2.2"
+    tag: "1.3.0"
 
 cabcapitalization:
   image:
     repository: harbor.irtsysx.fr/docker-proxy-cache/irtsystemx/interactiveai-cab-capitalization
     pullPolicy: Always
-    tag: "1.2.2"
+    tag: "1.3.0"
 
 frontend:
   image:
     repository: harbor.irtsysx.fr/docker-proxy-cache/irtsystemx/interactiveai-cab-standalone-frontend
     pullPolicy: Always
-    tag: "1.2.2"
+    tag: "1.3.0"
