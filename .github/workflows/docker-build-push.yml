@@ -42,7 +42,6 @@ jobs:
           - service: cab-standalone-frontend
             dockerfile: frontend/Dockerfile
             context: frontend
-            build_args: VITE_COGNITIVE_TOKEN=${{ secrets.VITE_COGNITIVE_TOKEN }}
           - service: powergrid-app
             dockerfile: usecases_examples/PowerGrid/Dockerfile.app
             context: usecases_examples/PowerGrid
@@ -79,6 +78,6 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: ${{ matrix.build_args || '' }}
+          build-args: ${{ matrix.service == 'cab-standalone-frontend' && format('VITE_COGNITIVE_TOKEN={0}', secrets.VITE_COGNITIVE_TOKEN) || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
