@@ -29,7 +29,7 @@ def create_observation_image(env, obs):
         fig = plot_helper.plot_obs(
             obs, line_info="rho", load_info=None, gen_info=None)
         img = io.BytesIO()
-        plt.savefig(img, format="png", bbox_inches="tight")
+        plt.savefig(img, format="svg", bbox_inches="tight")
         img.seek(0)
         img_b64 = base64.b64encode(img.read()).decode('utf-8')
         plt.close(fig)
