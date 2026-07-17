@@ -11,7 +11,7 @@
 username=$1 
 if [[ -z $username ]]
 then
-	username="admin"
+	username="atm_user"
 fi
 
 url=$2 
