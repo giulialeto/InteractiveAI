@@ -44,11 +44,25 @@
         :options="{ permanent: waypoint.permanentTooltip, direction: 'top', offset: [0, -12] }">
         {{ waypoint.id }}
       </LTooltip>
-      <LIcon
-        :icon-url="`/img/icons/map_markers/${$route.params.entity}.svg`"
-        :icon-size="[32, 32]"
-        class="context-marker"
-        :class-name="'context-marker ' + waypoint.severity" />
+      <!--
+        LIcon has no rotation option when given icon-url (it just renders a
+        plain L.Icon <img>). Putting content in its default slot switches
+        vue-leaflet to L.divIcon instead (see LIcon's setup(): it reads the
+        slot's rendered innerHTML and uses that as the icon's `html`), which
+        lets us rotate the image ourselves via inline style. Falls back to
+        pointing north (rotate(0)) for waypoints with no heading, i.e.
+        every non-ATM use case, unchanged from before.
+      -->
+      <LIcon :icon-size="[32, 32]" :class-name="'context-marker ' + waypoint.severity">
+        <img
+          :src="`/img/icons/map_markers/${$route.params.entity}.svg`"
+          :style="{
+            width: '32px',
+            height: '32px',
+            transformOrigin: 'center center',
+            transform: `rotate(${waypoint.heading ?? 0}deg)`
+          }" />
+      </LIcon>
     </LMarker>
     <LControlScale />
   </LMap>
@@ -140,6 +154,10 @@ onUnmounted(() => {
 }
 
 .context-marker {
+  // Overrides leaflet.css's .leaflet-div-icon defaults (white fill + grey
+  // border) now that this marker is rendered as an L.divIcon (needed so the
+  // ATM plane icon inside it can be rotated -- see Map.vue's LIcon usage).
+  border: none !important;
   transition: var(--duration);
   background: var(--color-success);
   border-radius: var(--radius-circular);

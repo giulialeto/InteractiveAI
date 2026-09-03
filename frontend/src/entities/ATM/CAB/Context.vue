@@ -33,7 +33,8 @@ onBeforeMount(async () => {
         mapStore.addContextWaypoint({
           lat: airplane.Latitude,
           lng: airplane.Longitude,
-          id: `plane-${airplane.id_plane}`
+          id: `plane-${airplane.id_plane}`,
+          heading: airplane.heading
         })
         // build the route waypoints
         const waypoints = [
@@ -71,7 +72,8 @@ onBeforeMount(async () => {
       mapStore.addContextWaypoint({
         lat: legacy.Latitude,
         lng: legacy.Longitude,
-        id: t('map.context')
+        id: t('map.context'),
+        heading: legacy.heading
       })
       const waypoints = [
         ...(legacy.wpList

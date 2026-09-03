@@ -6,6 +6,10 @@ export type Waypoint = {
   id: string
   category?: Uppercase<string>
   permanentTooltip?: boolean
+  // True heading, degrees clockwise from north (0-360), used to rotate the
+  // marker icon. Only meaningful for context waypoints that represent a
+  // heading object (e.g. ATM aircraft); leave unset for plain waypoints.
+  heading?: number
   options?: Partial<{
     stroke: boolean
     radius: number
