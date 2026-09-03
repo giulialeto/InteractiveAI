@@ -46,7 +46,7 @@ services:
       - TZ=UTC   # Set timezone to UTC
     command: sh -c "./entrypoint.sh"
     ports:
-      - 5000:5000
+      - 5051:5000
     volumes:
       - ../../../backend/event-service:/code
     depends_on:
@@ -244,7 +244,7 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: password
   rabbitmq:
     container_name: rabbit
-    image: rabbitmq:3-management
+    image: rabbitmq:3.12-management
     hostname: rabbit
 
 
