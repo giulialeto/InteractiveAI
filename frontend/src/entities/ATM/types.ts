@@ -3,6 +3,9 @@ export type AirplaneContext = {
   Current_airspeed: number;
   Latitude: number;
   Longitude: number;
+  // True heading, degrees clockwise from north (0-360). Optional: older
+  // producers of this payload don't send it yet.
+  heading?: number;
   ApDest?: {
     apcity: string;
     apid: Uppercase<string>;
@@ -22,6 +25,7 @@ export type LegacyContext = {
   Current_airspeed: number;
   Latitude: number;
   Longitude: number;
+  heading?: number;
   ApDest?: {
     apcity: string;
     apid: Uppercase<string>;
