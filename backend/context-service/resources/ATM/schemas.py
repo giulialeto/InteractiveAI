@@ -15,8 +15,17 @@ class PlaneMetadataSchemaATM(MetadataSchema):
     heading = Float(required=False)
     wpList = List(Dict())
 
+class ShapeMetadataSchemaATM(MetadataSchema):
+    name = String(required=True)
+    # SECTOR | WEATHER | VOLCANIC | OBSTACLE, see build_shapes_payload() in
+    # ai4realnet_rl_batch_bridge.py.
+    kind = String(required=False)
+    coordinates = List(List(Float()), required=True)
+
+
 class MetadataSchemaATM(MetadataSchema):
     airplanes = List(fields.Nested(PlaneMetadataSchemaATM), required=True)
+    shapes = List(fields.Nested(ShapeMetadataSchemaATM), required=False)
 
     # Backward compatibility: optional fields for the single airplane case
     ApDest = Dict(required=False)

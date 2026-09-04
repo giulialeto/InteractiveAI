@@ -6,6 +6,19 @@
       :url="tileLayer"
       layer-type="base"
       name="OpenStreetMap" />
+    <LPolygon
+      v-for="polygon of mapStore.polygons"
+      :key="polygon.id"
+      :lat-lngs="polygon.points"
+      :color="`var(--color-${criticalityToColor(maxCriticality('ROUTINE'))})`"
+      :weight="2"
+      :fill="true"
+      :fill-opacity="0.15"
+      v-bind="polygon.options">
+      <LTooltip :options="{ direction: 'center', className: 'shape-tooltip' }">
+        {{ polygon.id.replace(/^shape-/, '') }}
+      </LTooltip>
+    </LPolygon>
     <LPolyline
       v-for="polyline of mapStore.polylines"
       :key="polyline.id"
@@ -85,6 +98,7 @@ import {
   LIcon,
   LMap,
   LMarker,
+  LPolygon,
   LPolyline,
   LTileLayer,
   LTooltip

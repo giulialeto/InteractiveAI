@@ -28,3 +28,19 @@ export type Polyline = {
     color?: string
   }
 }
+
+export type Polygon = {
+  id: string
+  points: [number, number][]
+  category?: Uppercase<string>
+  options?: Partial<{
+    stroke: boolean
+    color: string
+    weight: number
+    opacity: number
+    fill: boolean
+    fillColor: string
+    fillOpacity: number
+    dashArray: string
+  }>
+}
