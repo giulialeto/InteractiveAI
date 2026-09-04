@@ -74,7 +74,8 @@ onBeforeMount(async () => {
         mapStore.addContextWaypoint({
           lat: airplane.Latitude,
           lng: airplane.Longitude,
-          id: `plane-${airplane.id_plane}`,
+          // Bare acid (from bluesky) as the label (e.g. "AC1")
+          id: `${airplane.id_plane}`,
           heading: airplane.heading
         })
         // build the route waypoints
