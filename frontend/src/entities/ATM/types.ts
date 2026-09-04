@@ -41,7 +41,15 @@ export type LegacyContext = {
   }[];
 };
 
-export type ContextType = { airplanes: AirplaneContext[] } | LegacyContext;
+export type ShapeContext = {
+  name: string;
+  kind?: 'SECTOR' | 'WEATHER' | 'VOLCANIC' | 'OBSTACLE' | string;
+  coordinates: [number, number][];
+};
+
+export type ContextType =
+  | { airplanes: AirplaneContext[]; shapes?: ShapeContext[] }
+  | LegacyContext;
 
 export type ATM = {
   Context: ContextType;
