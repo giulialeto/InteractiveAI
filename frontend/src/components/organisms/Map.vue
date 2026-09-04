@@ -57,8 +57,9 @@
         <img
           :src="`/img/icons/map_markers/${$route.params.entity}.svg`"
           :style="{
-            width: '32px',
-            height: '32px',
+            display: 'block',
+            width: '100%',
+            height: '100%',
             transformOrigin: 'center center',
             transform: `rotate(${waypoint.heading ?? 0}deg)`
           }" />
