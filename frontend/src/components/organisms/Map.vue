@@ -48,7 +48,9 @@
       </LTooltip>
     </LCircleMarker>
     <!--
-      ATM-only: Protected zone of 5 NM: scales with the map and stays centered on the aircraft
+      ATM-only: Protected zone of 5 NM: scales with the map and stays centered on the aircraft.
+      Turns red when waypoint.inLos (another aircraft is inside this zone right now, per
+      BlueSky's own conflict detection -- see _aircraft_in_los() in the bridge script).
     -->
     <template v-if="$route.params.entity === 'ATM'">
       <LCircle
@@ -56,10 +58,12 @@
         :key="`protected-zone-${waypoint.id}`"
         :lat-lng="[waypoint.lat, waypoint.lng]"
         :radius="PROTECTED_ZONE_RADIUS_M"
-        color="#009e8f"
-        :weight="1"
-        :dash-array="'4 4'"
-        :fill="false" />
+        :color="waypoint.inLos ? '#ff0000' : '#009e8f'"
+        :weight="waypoint.inLos ? 2 : 1"
+        :dash-array="waypoint.inLos ? undefined : '4 4'"
+        :fill="!!waypoint.inLos"
+        fill-color="#ff0000"
+        :fill-opacity="0.15" />
     </template>
     <LMarker
       v-for="waypoint of mapStore.contextWaypoints"

@@ -76,7 +76,8 @@ onBeforeMount(async () => {
           lng: airplane.Longitude,
           // Bare acid (from bluesky) as the label (e.g. "AC1")
           id: `${airplane.id_plane}`,
-          heading: airplane.heading
+          heading: airplane.heading,
+          inLos: airplane.in_los
         })
         // build the route waypoints
         const waypoints = [
