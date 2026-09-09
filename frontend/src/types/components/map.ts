@@ -10,6 +10,9 @@ export type Waypoint = {
   // marker icon. Only meaningful for context waypoints that represent a
   // heading object (e.g. ATM aircraft); leave unset for plain waypoints.
   heading?: number
+  // True if another aircraft is currently inside this one's protected zone
+  // (ATM only)
+  inLos?: boolean
   options?: Partial<{
     stroke: boolean
     radius: number

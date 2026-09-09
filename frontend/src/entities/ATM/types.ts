@@ -6,6 +6,8 @@ export type AirplaneContext = {
   // True heading, degrees clockwise from north (0-360). Optional: older
   // producers of this payload don't send it yet.
   heading?: number;
+  // True if another aircraft is currently inside this one's protected zone.
+  in_los?: boolean;
   ApDest?: {
     apcity: string;
     apid: Uppercase<string>;
