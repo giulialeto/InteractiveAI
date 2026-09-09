@@ -47,6 +47,20 @@
         {{ waypoint.id }}
       </LTooltip>
     </LCircleMarker>
+    <!--
+      ATM-only: Protected zone of 5 NM: scales with the map and stays centered on the aircraft
+    -->
+    <template v-if="$route.params.entity === 'ATM'">
+      <LCircle
+        v-for="waypoint of mapStore.contextWaypoints"
+        :key="`protected-zone-${waypoint.id}`"
+        :lat-lng="[waypoint.lat, waypoint.lng]"
+        :radius="PROTECTED_ZONE_RADIUS_M"
+        color="#009e8f"
+        :weight="1"
+        :dash-array="'4 4'"
+        :fill="false" />
+    </template>
     <LMarker
       v-for="waypoint of mapStore.contextWaypoints"
       :key="waypoint.id"
@@ -58,13 +72,7 @@
         {{ waypoint.id }}
       </LTooltip>
       <!--
-        LIcon has no rotation option when given icon-url (it just renders a
-        plain L.Icon <img>). Putting content in its default slot switches
-        vue-leaflet to L.divIcon instead (see LIcon's setup(): it reads the
-        slot's rendered innerHTML and uses that as the icon's `html`), which
-        lets us rotate the image ourselves via inline style. Falls back to
-        pointing north (rotate(0)) for waypoints with no heading, i.e.
-        every non-ATM use case, unchanged from before.
+        Switched to L-divIcon to allow rotation of the ATM plane icon, based on the heading. For non atm use-cases it should default to 0 degrees orientation.
       -->
       <LIcon :icon-size="[32, 32]" :class-name="'context-marker ' + waypoint.severity">
         <img
@@ -93,6 +101,7 @@
 import 'leaflet/dist/leaflet.css'
 
 import {
+  LCircle,
   LCircleMarker,
   LControlScale,
   LIcon,
@@ -128,6 +137,11 @@ const props = withDefaults(
 
 const mapStore = useMapStore()
 const appStore = useAppStore()
+
+// Protected-zone ring drawn around each ATM aircraft context marker.
+// Leaflet's LCircle radius is in meters; 1 NM = 1852 m.
+const PROTECTED_ZONE_RADIUS_NM = 5
+const PROTECTED_ZONE_RADIUS_M = PROTECTED_ZONE_RADIUS_NM * 1852
 
 const lockView = ref(true)
 const zoom = ref(6)
