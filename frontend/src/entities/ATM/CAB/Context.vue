@@ -20,7 +20,6 @@ const servicesStore = useServicesStore()
 const mapStore = useMapStore()
 const appStore = useAppStore()
 
-const contextPID = ref(0)
 const faulty = ref(false)
 
 // Styling per shape kind, see build_shapes_payload() in
@@ -64,7 +63,7 @@ function addShapes(shapes: ShapeContext[]) {
 
 onBeforeMount(async () => {
   locale.value = `en-ATM`
-  contextPID.value = await servicesStore.getContext('ATM', (context: { data: ContextType }) => {
+  await servicesStore.getContext('ATM', (context: { data: ContextType }) => {
     // New context data: iterate over the airplanes array
     // 1-  Clear last tick's markers and ROUTE waypoints
     mapStore.removeCategoryWaypoint('ROUTE')
@@ -155,6 +154,6 @@ onBeforeMount(async () => {
 onUnmounted(() => {
   locale.value =
     window.navigator.language.split('-')[0] || import.meta.env.VITE_DEFAULT_LOCALE || 'en'
-  clearInterval(contextPID.value)
+  servicesStore.stopContext()
 })
 </script>

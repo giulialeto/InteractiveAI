@@ -1,0 +1,749 @@
+apiVersion: v1
+data:
+  businessconfig.yml: |
+    spring:
+      application:
+        name: businessconfig
+    operatorfabric.businessconfig:
+      storage:
+        path: "/businessconfig-storage"
+  cards-consultation.yml: |
+    spring:
+      application:
+        name: cards-consultation
+    checkIfUserIsAlreadyConnected: true
+  cards-publication.yml: |
+    spring:
+      application:
+        name: cards-publication
+      deserializer:
+        value:
+          delegate:
+            class: io.confluent.kafka.serializers.KafkaAvroDeserializer
+      serializer:
+        value:
+          delegate:
+            class: io.confluent.kafka.serializers.KafkaAvroSerializer
+    opfab:
+      kafka:
+        topics:
+          card:
+            topicname: opfab
+          response-card:
+            topicname: opfab-response
+        schema:
+          registry:
+            url: http://localhost:8081
+    checkAuthenticationForCardSending: false
+  common.yml: |
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: '*'
+    spring:
+      rabbitmq:
+        host: cab-rabbitmq.cab.svc.cluster.local
+        port: 5672
+        username: ${RABBITMQ_USERNAME}
+        password: ${RABBITMQ_PASSWORD}
+      security:
+        provider-url: https://keycloak.irtsysx.fr/auth
+        oauth2:
+          resourceserver:
+            jwt:
+              jwk-set-uri: ${spring.security.provider-url}/realms/interactiveai/protocol/openid-connect/certs
+      data:
+        mongodb:
+          database: ${MONGODB_DB}
+          uri: mongodb://${MONGODB_USERNAME}:${MONGODB_PASSWORD}@cab-mongodb.cab.svc.cluster.local:27017/${MONGODB_DB}?authSource=admin&authMode=scram-sha1
+    server:
+      forward-headers-strategy: framework
+    operatorfabric:
+      servicesUrls:
+        users: "http://cab-users.cab.svc.cluster.local:8080"
+        businessconfig: "http://cab-businessconfig.cab.svc.cluster.local:8080"
+  nginx.conf: |
+    # docker-compose DNS used to resolved users service
+    # resolver 127.0.0.11 ipv6=off;
+
+    # Log format to have msec in time + request processing time
+    map "$time_local:$msec" $time_local_ms {
+        ~(^\S+)(\s+\S+):\d+\.(\d+)$ $1.$3$2;
+    }
+    log_format opfab-log '$remote_addr - $time_local_ms'
+    '"$request" $status $request_time $body_bytes_sent ';
+
+    log_format upstreamlog '[$time_local] $remote_addr - $remote_user - $server_name $host to: $upstream_addr: $request $status upstream_response_time $upstream_response_time msec $msec request_time $request_time';
+
+    server {
+        listen 8080;
+        server_name localhost demo.interactiveai.irt-systemx.fr;
+        error_log /var/log/nginx/error.log debug;
+        access_log /var/log/nginx/access.log opfab-log;
+
+        ### CUSTOMIZATION - BEGIN
+        # Url of the Authentication provider
+        set $KeycloakBaseUrl "https://keycloak.irtsysx.fr";
+        # Realm associated to OperatorFabric within the Authentication provider
+        set $OperatorFabricRealm "interactiveai";
+        # base64 encoded pair of authentication in the form of 'client-id:secret-id'
+        set $ClientPairOFAuthentication "b3BmYWItY2xpZW50Oklxdkh4VzBEdENDNXVMVEVTcFhyN0sxdkhtSHViOGdE" ;
+
+        ### CUSTOMIZATION - END
+
+        ###  OPFAB GENERIC CONFIGURATION  ###
+        ###  BE CAREFUL WHEN MODIFYING    ###
+        set $BasicValue "Basic $ClientPairOFAuthentication";
+        set $KeycloakOpenIdConnect $KeycloakBaseUrl/auth/realms/$OperatorFabricRealm/protocol/openid-connect;
+        gzip on;
+        gzip_types application/javascript text/css;
+
+        location / {
+            add_header Cache-Control "no-cache";
+            alias /usr/share/nginx/html/;
+            try_files $uri $uri/ /index.html;
+        }
+        location = /external/ {
+            add_header Cache-Control "no-cache";
+            alias /usr/share/nginx/html/external/;
+            index index.html index.htm;
+        }
+        location /ui/ {
+            add_header Cache-Control "no-cache";
+            alias /usr/share/nginx/html/;
+            index index.html index.htm;
+        }
+        location /auth/check_token {
+            add_header Cache-Control "no-cache";
+            proxy_set_header Host keycloak.irtsysx.fr;
+            proxy_set_header Authorization $BasicValue ;
+            proxy_pass $KeycloakOpenIdConnect/token/introspect;
+        }
+        location /auth/token {
+            add_header Cache-Control "no-cache";
+            proxy_set_header Host keycloak.irtsysx.fr;
+            proxy_set_header Authorization $BasicValue ;
+            proxy_pass $KeycloakOpenIdConnect/token;
+        }
+        location /auth/code/ {
+            add_header Cache-Control "no-cache";
+            proxy_set_header Host keycloak.irtsysx.fr;
+            proxy_set_header Authorization $BasicValue ;
+            proxy_pass $KeycloakOpenIdConnect/auth?response_type=code&client_id=opfab-client&$args;
+        }
+
+        location /auth {
+            add_header Cache-Control "no-cache";
+            proxy_set_header X-Forwarded-For $proxy_protocol_addr;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header Host keycloak.irtsysx.fr;
+            proxy_pass $KeycloakBaseUrl/auth;
+        }
+
+        # To be sure new files are downloaded when version change
+        # we set no-cache for json config files and for i18n files
+        location /config/web-ui.json {
+            add_header Cache-Control "no-cache";
+            alias /usr/share/nginx/html/opfab/web-ui.json;
+        }
+        location /config/ui-menu.json {
+            add_header Cache-Control "no-cache";
+            alias /usr/share/nginx/html/opfab/ui-menu.json;
+        }
+        location /ui/assets/i18n/ {
+            add_header Cache-Control "no-cache";
+            alias /usr/share/nginx/html/assets/i18n/;
+        }
+
+        location /businessconfig {
+            add_header Cache-Control "no-cache";
+            proxy_pass http://cab-businessconfig.cab.svc.cluster.local:8080;
+            proxy_set_header X-Forwarded-For $remote_addr;
+        }
+
+        location ~ "^/users/internal/(.*)" {
+            return 404;
+        }
+
+        location ~ "^/users/(.*)" {
+            add_header Cache-Control "no-cache";
+            proxy_pass http://cab-users.cab.svc.cluster.local:8080/$1$is_args$args;
+            proxy_set_header X-Forwarded-For $remote_addr;
+        }
+
+        location /users {
+            add_header Cache-Control "no-cache";
+            proxy_pass http://cab-users.cab.svc.cluster.local:8080/users;
+            proxy_set_header X-Forwarded-For $remote_addr;
+        }
+
+        location /perimeters {
+            add_header Cache-Control "no-cache";
+            proxy_pass http://cab-users.cab.svc.cluster.local:8080/perimeters;
+            proxy_set_header X-Forwarded-For $remote_addr;
+        }
+
+        location /cards/ {
+            add_header Cache-Control "no-cache";
+            proxy_pass http://cab-cardsconsultation.cab.svc.cluster.local:8080/;
+            proxy_set_header X-Forwarded-For $remote_addr;
+        }
+        ###  !!!! SECURITY WARNING !!!!
+        ### The following configuration is suitable only if you set checkAuthenticationForCardSending to true
+        ### which is the default configuration
+        ###
+
+        location /cardspub/cards {
+            add_header Cache-Control "no-cache";
+            proxy_pass http://cab-cardspublication.cab.svc.cluster.local:8080/cards;
+            proxy_set_header X-Forwarded-For $remote_addr;
+        }
+
+        ### if you set checkAuthenticationForCardSending to false
+        ### you MUST not permit to access cards endpoint via nginx
+        ### and replace the previous configuration by the following conf
+
+        #location /cardspub/cards/user {
+        #  proxy_pass http://cards-publication:8080/cards/user;
+        #  proxy_set_header X-Forwarded-For $remote_addr;
+        #}
+        #location /cardspub/cards/translateCardField {
+        #  proxy_pass http://cards-publication:8080/cards/translateCardField;
+        #  proxy_set_header X-Forwarded-For $remote_addr;
+        #}
+        ###
+        ### !!! END SECURITY WARNING  !!!
+        location /archives {
+            add_header Cache-Control "no-cache";
+            proxy_pass http://cab-cardsconsultation.cab.svc.cluster.local:8080;
+            proxy_set_header X-Forwarded-For $remote_addr;
+        }
+        location /externaldevices {
+            add_header Cache-Control "no-cache";
+            set $externaldevices http://external-devices.cab.svc.cluster.local:8080;
+            proxy_pass $externaldevices;
+            proxy_set_header X-Forwarded-For $remote_addr;
+        }
+        location ~ "^/externaldevices/(.*)" {
+            add_header Cache-Control "no-cache";
+            set $externaldevices http://external-devices.cab.svc.cluster.local:8080;
+            proxy_pass $externaldevices/$1;
+            proxy_set_header X-Forwarded-For $remote_addr;
+        }
+
+        location /cabcontext/ {
+            add_header Cache-Control "no-cache";
+            proxy_pass http://cab-cabcontext.cab.svc.cluster.local:5000/;
+            proxy_set_header X-Forwarded-For $remote_addr;
+        }
+
+        location /cab_event/ {
+            add_header Cache-Control "no-cache";
+            proxy_pass http://cab-cabevent.cab.svc.cluster.local:5000/;
+            proxy_set_header X-Forwarded-For $remote_addr;
+        }
+
+        location /cab_recommendation/ {
+            add_header Cache-Control "no-cache";
+            proxy_pass http://cab-cabrecommendation.cab.svc.cluster.local:5000/;
+            proxy_set_header X-Forwarded-For $remote_addr;
+        }
+
+        location /cabhistoric/ {
+            add_header Cache-Control "no-cache";
+            proxy_pass http://cab-cabhistoric.cab.svc.cluster.local:5000/;
+            proxy_set_header X-Forwarded-For $remote_addr;
+        }
+
+        location /cab_capitalization/ {
+            add_header Cache-Control "no-cache";
+            proxy_pass http://cab-cabcapitalization.cab.svc.cluster.local:5000/;
+            proxy_set_header X-Forwarded-For $remote_addr;
+        }
+
+        # PowerGrid (grid2op) simulator "apply action" proxy. Keeps the browser POST
+        # same-origin (no CORS) — the frontend is built with
+        # VITE_POWERGRID_SIMU=/powergrid-simu and posts to /powergrid-simu/api/v1/recommendations.
+        # The proxy_pass placeholder below is substituted at container start by start-webui.sh
+        # from the POWERGRID_SIMU_UPSTREAM env var of the frontend pod.
+        # No explicit Host header: nginx defaults it to $proxy_host (the authority from
+        # proxy_pass), so the passerelle gets the right vhost whatever the upstream is.
+        # Forwarding $http_host instead would make it route to the wrong vhost.
+        location /powergrid-simu/ {
+            add_header Cache-Control "no-cache";
+            proxy_set_header X-Forwarded-For $remote_addr;
+            proxy_ssl_server_name on;
+            proxy_ssl_verify off;
+            proxy_pass __POWERGRID_SIMU_UPSTREAM__;
+        }
+
+        error_page 500 502 503 504 /50x.html;
+        location = /50x.html {
+            root /usr/share/nginx/html;
+        }
+        # Proxy for the INESCTEC cognitive API (avoids browser CORS restrictions).
+        # The bearer token is attached here, not by the browser: the placeholder on the
+        # Authorization line is substituted at container start by start-webui.sh from the
+        # COGNITIVE_TOKEN env var of the frontend pod, so the token stays out of the public
+        # JS bundle and is rotated by updating the secret and restarting the deployment.
+        # The placeholder is deliberately not named in this comment: substitution is a
+        # plain sed, so naming it would write the token into the comment as well.
+        location /cognitive-api/ {
+            add_header Cache-Control "no-cache";
+            proxy_set_header Host wesenss.inesctec.pt;
+            proxy_set_header X-Forwarded-For $remote_addr;
+            proxy_set_header Authorization "Bearer __COGNITIVE_TOKEN__";
+            proxy_ssl_server_name on;
+            proxy_ssl_verify off;
+            proxy_pass https://wesenss.inesctec.pt/api/v1/;
+        }
+    }
+  ui-menu.json: |
+    {
+      "coreMenusConfiguration":
+      [
+        {
+          "id": "feed",
+          "visible": true
+        },
+        {
+          "id": "archives",
+          "visible": true
+        },
+        {
+          "id": "monitoring",
+          "visible": true
+        },
+        {
+          "id": "logging",
+          "visible": true
+        },
+        {
+          "id": "usercard",
+          "visible": true
+        },
+        {
+          "id": "calendar",
+          "visible": true
+        },
+        {
+          "id": "admin",
+          "visible": true,
+          "showOnlyForGroups": ["ADMIN"]
+        },
+        {
+          "id": "settings",
+          "visible": true
+        },
+        {
+          "id": "activityarea",
+          "visible": true
+        },
+        {
+          "id": "feedconfiguration",
+          "visible": true
+        },
+        {
+          "id": "realtimeusers",
+          "visible": true
+        },
+        {
+          "id": "externaldevicesconfiguration",
+          "visible": true,
+          "showOnlyForGroups": ["ADMIN"]
+        },
+        {
+          "id": "nightdaymode",
+          "visible": true
+        },
+        {
+          "id": "about",
+          "visible": true
+        },
+        {
+          "id": "changepassword",
+          "visible": true
+        },
+        {
+          "id": "logout",
+          "visible": true
+        }
+      ],
+      "menus": [
+        {
+          "id": "menu1",
+          "label": "title.single",
+          "entries": [
+            {
+              "id": "uid_test_0",
+              "url": "https://en.wikipedia.org/w/index.php",
+              "label": "entry.single",
+              "linkType": "BOTH"
+            }
+          ]
+        },
+        {
+          "id": "menu2",
+          "label": "title.multi",
+          "entries": [
+            {
+              "id": "uid_test_1",
+              "url": "https://opfab.github.io/",
+              "label": "entry.entry1",
+              "linkType": "BOTH",
+              "showOnlyForGroups": ["ReadOnly","Planner"]
+            },
+            {
+              "id": "uid_test_2",
+              "url": "https://www.wikipedia.org/",
+              "label": "entry.entry2",
+              "linkType": "BOTH",
+              "showOnlyForGroups": ["Dispatcher"]
+            },
+            {
+              "id": "uid_test_3",
+              "url": "http://localhost:2002/external/appExample/",
+              "label": "entry.entry3",
+              "linkType": "BOTH"
+            }
+          ]
+        },
+        {
+          "id": "adminmenu",
+          "label": "title.admin",
+          "entries": [
+            {
+              "id": "uid_test_3",
+              "url": "https://opfab.github.io/",
+              "label": "entry.admin",
+              "linkType": "BOTH",
+              "showOnlyForGroups": ["ADMIN"]
+            }
+          ]
+        }
+      ],
+      "locales": [
+        {
+          "language": "en",
+          "i18n": {
+            "menu1": {
+              "title": {
+                "single": "First menu"
+              },
+              "entry": {
+                "single": "Single menu entry"
+              }
+            },
+            "menu2": {
+              "title": {
+                "multi": "Second menu"
+              },
+              "entry": {
+                "entry1": "First menu entry",
+                "entry2": "Second menu entry",
+                "entry3": "External application"
+              }
+            },
+            "adminmenu": {
+              "title": {
+                "admin": "Admin menu"
+              },
+              "entry": {
+                "admin": "Admin menu entry"
+              }
+            }
+          }
+        },
+        {
+          "language": "fr",
+          "i18n": {
+            "menu1": {
+              "title": {
+                "single": "Premier menu"
+              },
+              "entry": {
+                "single": "Unique élément"
+              }
+            },
+            "menu2": {
+              "title": {
+                "multi": "Deuxième menu"
+              },
+              "entry": {
+                "entry1": "Premier élément",
+                "entry2": "Deuxième élément",
+                "entry3": "Application externe"
+              }
+            },
+            "adminmenu": {
+              "title": {
+                "admin": "Admin menu"
+              },
+              "entry": {
+                "admin": "Admin menu entry"
+              }
+            }
+          }
+        },
+        {
+          "language": "nl",
+          "i18n": {
+            "menu1": {
+              "title": {
+                "single": "Eerste menu"
+              },
+              "entry": {
+                "single": "Enkel menu-item"
+              }
+            },
+            "menu2": {
+              "title": {
+                "multi": "Tweede menu"
+              },
+              "entry": {
+                "entry1": "Eerste menu-item",
+                "entry2": "Tweede menu-item",
+                "entry3": "TExterne applicatie"
+              }
+            },
+            "adminmenu": {
+              "title": {
+                "admin": "Admin menu"
+              },
+              "entry": {
+                "admin": "Admin menu-item"
+              }
+            }
+          }
+        }
+      ]
+    }
+  users.yml: |2
+
+    #  POPULATE THE USER DATABASE ON INIT
+    # !!!! WARNING: VALUES SHOULD BE CHANGED FOR PRODUCTION MODE !!!!
+    spring:
+      application:
+        name: users
+    operatorfabric.users.default:
+      users:
+        - login: admin
+          groups: ["ADMIN"]
+          entities: ["Railway", "ATM", "PowerGrid"]
+        - login: ilyes
+          firstname : Ilyes
+          lastname : KAANICH
+          groups: ["Dispatcher","ReadOnly"]
+          entities: ["IRT_MAIN"]
+        - login: railway_user
+          groups: ["Planner", "ReadOnly"]
+          entities: ["Railway"]
+        - login: orange_user
+          groups: [ "PowerGrid","ADMIN","ReadOnly","Dispatcher"]
+          entities: [ "ORANGE" ]
+        - login: atm_user
+          groups: ["ReadOnly","Dispatcher"]
+          entities: ["ATM"]
+        - login: PowerGrid_user
+          groups: [ "PowerGrid","ADMIN","ReadOnly","Dispatcher"]
+          entities: [ "PowerGrid" ]
+      groups:
+        - id: ADMIN
+          name: ADMINISTRATORS
+          description: The admin group
+        - id: PowerGrid
+          name: RTE France
+          description: RTE TSO Group
+          realtime: false
+        - id: Dispatcher
+          name: Dispatcher
+          description: Dispatcher Group
+          realtime: true
+        - id: Planner
+          name: Planner
+          description: Planner Group
+          realtime: true
+        - id: Supervisor
+          name: Supervisor
+          description: Supervisor Group
+          realtime: true
+        - id: Manager
+          name: Manager
+          description: Manager Group
+          realtime: false
+        - id: ReadOnly
+          name: ReadOnly
+          description: ReadOnly Group
+          realtime: false
+      entities:
+      - id: Railway
+        name: National society of French railroads
+        description: National society of French railroads
+        parents : ["IRT_MAIN"]
+      - id: ORANGE
+        name: Orange
+        description: Orange
+        parents : ["IRT_MAIN"]
+      - id: ATM
+        name: ATM usecase
+        description: ATM usecase
+        parents : ["IRT_MAIN"]
+      - id: PowerGrid
+        name: Electricity Transmission Network
+        description: Electricity Transmission Network
+        parents : ["IRT_MAIN"]
+      - id: IRT_MAIN
+        name: IRT Control Centers
+        description: IRT Control Centers
+        entityAllowedToSendCard: false
+  web-ui.json: |
+    {
+      "environmentName": "KUBERNETES ENV",
+      "environmentColor": "blue",
+      "checkIfUrlIsLocked": true,
+      "showUserEntitiesOnTopRightOfTheScreen": true,
+      "externalDevicesEnabled": true,
+      "selectActivityAreaOnLogin": false,
+      "archive": {
+        "filters": {
+          "page": {
+            "size": [
+              "10"
+            ]
+          },
+          "tags": {
+            "list": [
+              {
+                "label": "Label for tag 1",
+                "value": "tag1"
+              },
+              {
+                "label": "Label for tag 2",
+                "value": "tag2"
+              }
+            ]
+          }
+        }
+      },
+      "logging": {
+        "filters": {
+          "tags": {
+            "list": [
+              {
+                "label": "Label for tag 1",
+                "value": "tag1"
+              }
+            ]
+          }
+        }
+      },
+      "feed": {
+        "defaultSorting": "unread",
+        "defaultAcknowledgmentFilter": "notack",
+        "card": {
+          "hideTimeFilter": false,
+          "time": {
+            "display": "BUSINESS"
+          },
+          "hideResponseFilter": false,
+          "hideApplyFiltersToTimeLineChoice": false,
+          "secondsBeforeLttdForClockDisplay": 3700,
+          "hideAckAllCardsFeature": false,
+          "titleUpperCase": true
+        },
+        "timeline": {
+          "domains": [
+            "TR",
+            "J",
+            "7D",
+            "W",
+            "M",
+            "Y"
+          ]
+        },
+        "geomap": {
+          "enableMap": false,
+          "defaultDataProjection": "EPSG:4326",
+          "initialLongitude": 5.3255,
+          "initialLatitude": 52.1845,
+          "initialZoom": 6,
+          "zoomLevelWhenZoomToLocation": 14,
+          "maxZoom": 11,
+          "zoomDuration": 500
+        },
+        "enableGroupedCards": false
+      },
+      "i18n": {
+        "supported": {
+          "locales": [
+            "en",
+            "fr",
+            "nl"
+          ]
+        }
+      },
+      "security": {
+        "jwt": {
+          "expire-claim": "exp",
+          "login-claim": "preferred_username"
+        },
+        "logout-url": "https://keycloak.irtsysx.fr/auth/realms/interactiveai/protocol/openid-connect/logout?redirect_uri=https://demo.interactiveai.irt-systemx.fr/",
+        "oauth2": {
+          "client-id": "opfab-client",
+          "flow": {
+            "delegate-url": "https://keycloak.irtsysx.fr/auth/realms/interactiveai/protocol/openid-connect/auth?response_type=code&client_id=opfab-client",
+            "mode": "PASSWORD",
+            "provider": "Opfab Keycloak"
+          }
+        },
+        "provider-realm": "interactiveai",
+        "provider-url": "https://keycloak.irtsysx.fr/auth",
+        "changePasswordUrl": "https://keycloak.irtsysx.fr/auth/realms/interactiveai/account/#/security/signingin"
+      },
+      "settings": {
+        "locale": "en",
+        "dateTimeFormat": "HH:mm DD/MM/YYYY",
+        "dateFormat": "DD/MM/YYYY",
+        "styleWhenNightDayModeDesactivated": "NIGHT",
+        "replayInterval" : 10,
+        "replayEnabled" : true
+
+      },
+      "settingsScreen": {
+        "hiddenSettings":  ["description"]
+      },
+      "about": {
+        "firstapplication": {
+          "name": "First application",
+          "rank": 1,
+          "version": "v12.34.56"
+        },
+        "keycloack": {
+          "name": "Keycloak",
+          "rank": 2,
+          "version": "6.0.1"
+        },
+        "lastapplication": {
+          "name": "Wonderful Solution",
+          "version": "0.1.2-RELEASE"
+        }
+      },
+      "usercard": {
+        "useDescriptionFieldForEntityList": false
+      }
+    }
+kind: ConfigMap
+metadata:
+  annotations:
+    argocd.argoproj.io/tracking-id: cab:/ConfigMap:cab/cab-assistant-platform-config
+    meta.helm.sh/release-name: cab
+    meta.helm.sh/release-namespace: cab
+  labels:
+    app.kubernetes.io/instance: cab
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: interactiveai-platform
+    app.kubernetes.io/version: 0.0.1
+    helm.sh/chart: interactiveai-platform-0.2.2
+  name: cab-assistant-platform-config
+  namespace: cab
