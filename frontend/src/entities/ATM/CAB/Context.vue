@@ -27,17 +27,19 @@ const faulty = ref(false)
 const SHAPE_STYLE: Record<NonNullable<ShapeContext['kind']>, NonNullable<Polygon['options']>> = {
   SECTOR: { color: 'var(--color-secondary)', weight: 1, dashArray: '4 4', fill: false },
   WEATHER: {
-    color: 'var(--color-error)',
+    // MEDIUM criticality / warning
+    color: 'var(--color-warning)',
     weight: 2,
     fill: true,
-    fillColor: 'var(--color-error)',
+    fillColor: 'var(--color-warning)',
     fillOpacity: 0.2
   },
   VOLCANIC: {
-    color: 'var(--color-error)',
+    // MEDIUM criticality / warning
+    color: 'var(--color-warning)',
     weight: 2,
     fill: true,
-    fillColor: 'var(--color-error)',
+    fillColor: 'var(--color-warning)',
     fillOpacity: 0.25
   },
   OBSTACLE: {
