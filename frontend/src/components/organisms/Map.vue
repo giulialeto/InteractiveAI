@@ -78,7 +78,13 @@
       <!--
         Switched to L-divIcon to allow rotation of the ATM plane icon, based on the heading. For non atm use-cases it should default to 0 degrees orientation.
       -->
-      <LIcon :icon-size="[32, 32]" :class-name="'context-marker ' + waypoint.severity">
+      <LIcon
+        :icon-size="[32, 32]"
+        :class-name="
+          'context-marker ' +
+          waypoint.severity +
+          ($route.params.entity === 'ATM' ? ' context-marker-plain' : '')
+        ">
         <img
           :src="`/img/icons/map_markers/${$route.params.entity}.svg`"
           :style="{
@@ -201,6 +207,11 @@ onUnmounted(() => {
   &.ALARM {
     background: var(--color-error);
   }
+}
+// ATM-only: no colored circular badge behind the plane icon
+.context-marker.context-marker-plain {
+  background: transparent !important;
+  padding: 0 !important;
 }
 .cab-map-lockview {
   width: calc(var(--unit) * 5);
