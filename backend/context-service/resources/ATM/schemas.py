@@ -10,8 +10,7 @@ class PlaneMetadataSchemaATM(MetadataSchema):
     Current_airspeed = Float()
     Latitude = Float()
     Longitude = Float()
-    # True heading, degrees clockwise from north (0-360). Optional so
-    # existing producers that don't send it still validate.
+    # True heading, degrees clockwise from north (0-360). Optional
     heading = Float(required=False)
     # True if another aircraft is inside this one's protected zone right now.
     in_los = fields.Boolean(required=False)

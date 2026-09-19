@@ -3,8 +3,7 @@ export type AirplaneContext = {
   Current_airspeed: number;
   Latitude: number;
   Longitude: number;
-  // True heading, degrees clockwise from north (0-360). Optional: older
-  // producers of this payload don't send it yet.
+  // True heading, degrees clockwise from north (0-360). Optional.
   heading?: number;
   // True if another aircraft is currently inside this one's protected zone.
   in_los?: boolean;

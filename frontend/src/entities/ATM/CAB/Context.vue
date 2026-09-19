@@ -112,8 +112,7 @@ onBeforeMount(async () => {
         }
       })
     } else {
-      // Legacy context data handling (no shapes support in this format --
-      // clear any stale shapes from a previous, newer-format context)
+      // Legacy context data handling
       addShapes([])
       const legacy = context.data as LegacyContext
       mapStore.addContextWaypoint({
