@@ -44,7 +44,10 @@
         </div>
       </header>
       <slot name="notifications" :section>
-        <div v-if="Object.keys(filtered(section.filter)).length" class="card-container">
+        <div
+          v-if="Object.keys(filtered(section.filter)).length"
+          ref="cardContainers"
+          class="card-container">
           <template
             v-for="key of Object.keys(filtered(section.filter)).sort((a, b) => {
               return (
@@ -129,7 +132,7 @@
 <script setup lang="ts" generic="E extends Entity">
 import { ChevronDown, Eraser, Inbox } from 'lucide-vue-next'
 import groupBy from 'object.groupby'
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import Button from '@/components/atoms/Button.vue'
@@ -169,10 +172,13 @@ const cardsStore = useCardsStore()
 const cards = computed(() =>
   [...cardsStore.cards(props.entity, hasBeenAcknowledged.value)]
     .filter((c) => !c.data.parent_event_id)
-    .sort(
-      (a, b) =>
+    .sort((a, b) => {
+      const criticalityDiff =
         CRITICALITIES.indexOf(b.data.criticality) - CRITICALITIES.indexOf(a.data.criticality)
-    )
+      if (criticalityDiff !== 0) return criticalityDiff
+      // Within the same criticality, puts the most recently published/updated first.
+      return b.publishDate - a.publishDate
+    })
 )
 
 function filtered(fn: (typeof props.sections)[number]['filter']) {
@@ -181,6 +187,18 @@ function filtered(fn: (typeof props.sections)[number]['filter']) {
 
 const hasBeenAcknowledged = ref(false)
 const modals = ref<{ callback: (success: boolean) => void; message: string; id: string }[]>([])
+// One entry per rendered section's .card-container. Populated by vue.
+const cardContainers = ref<HTMLElement[]>([])
+
+// Scrolls all card containers to the top when a new notification is revealed. The interval is needed because the card may not be rendered yet when the event is emitted, so we try again until it is.
+eventBus.on('notifications:reveal', () => {
+  const scrollToTop = () => {
+    for (const el of cardContainers.value) el.scrollTop = 0
+  }
+  nextTick(scrollToTop)
+  const interval = setInterval(scrollToTop, 200)
+  setTimeout(() => clearInterval(interval), 2000)
+})
 
 eventBus.on('notifications:ended', () => {
   if (modals.value.find((m) => m.id === 'ended') || !props.autoclose) return
@@ -233,6 +251,7 @@ function deleteAll() {
 .cab-notifications {
   .card-container {
     overflow: auto;
+    overflow-anchor: none;
     scrollbar-gutter: stable;
     height: 100%;
     display: flex;

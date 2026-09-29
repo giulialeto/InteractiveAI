@@ -70,7 +70,7 @@
       :key="waypoint.id"
       :lat-lng="[waypoint.lat, waypoint.lng]"
       :z-index-offset="10000"
-      @click="contextClick">
+      @click="contextClick?.(waypoint)">
       <LTooltip
         :options="{ permanent: waypoint.permanentTooltip, direction: 'top', offset: [0, -12] }">
         {{ waypoint.id }}

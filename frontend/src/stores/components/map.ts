@@ -9,12 +9,21 @@ export const useMapStore = defineStore('map', () => {
   const polylines = ref<Polyline[]>([])
   const contextWaypoints = ref<Waypoint[]>([])
   const polygons = ref<Polygon[]>([])
+  // Id of the context waypoint (e.g. an ATM aircraft) currently selected via a
+  // map click
+  const selectedWaypointId = ref<string>()
 
   function reset() {
     resetWaypoints()
     resetPolylines()
     resetContextWaypoints()
     resetPolygons()
+    selectedWaypointId.value = undefined
+  }
+
+  // Clicking the already-selected waypoint deselects it.
+  function selectWaypoint(id: string) {
+    selectedWaypointId.value = selectedWaypointId.value === id ? undefined : id
   }
 
   function addWaypoint(waypoint: Waypoint) {
@@ -78,7 +87,9 @@ export const useMapStore = defineStore('map', () => {
     polylines,
     contextWaypoints,
     polygons,
+    selectedWaypointId,
     reset,
+    selectWaypoint,
     addWaypoint,
     removeWaypoint,
     removeCategoryWaypoint,
