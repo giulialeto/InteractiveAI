@@ -20,3 +20,11 @@ import type { Criticality } from '@/types/cards'
 
 const FILTER: Criticality[] = ['HIGH', 'MEDIUM', 'LOW', 'ND']
 </script>
+<style lang="scss" scoped>
+// Event card descriptions use \n to separate fields, but the
+// default `white-space: normal` collapses them onto one line. `pre-line` keeps
+// the \n line breaks.
+:deep(.cab-notification main) {
+  white-space: pre-line;
+}
+</style>

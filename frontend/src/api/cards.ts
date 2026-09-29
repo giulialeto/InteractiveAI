@@ -3,6 +3,7 @@ import i18n from '@/plugins/i18n'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import type { Card, CardEvent } from '@/types/cards'
+import { handleSessionExpired } from '@/utils/session'
 
 let controller: AbortController = new AbortController()
 
@@ -15,7 +16,8 @@ export async function subscribe(
     rangeStart?: string
     notification?: 'true' | 'false'
   },
-  handler: (card: CardEvent) => void
+  handler: (card: CardEvent) => void,
+  retried = false
 ) {
   const authStore = useAuthStore()
   const appStore = useAppStore()
@@ -35,6 +37,13 @@ export async function subscribe(
       signal: controller.signal
     }
   )
+  // This request bypasses the axios interceptors, so the token dance lives here
+  if (response.status === 401) {
+    if (!retried && (await authStore.refresh())) return subscribe(config, handler, true)
+    appStore.status.notifications.state = 'OFFLINE'
+    handleSessionExpired()
+    return response
+  }
   const reader = response.body!.getReader()
   const decoder = new TextDecoder('utf-8')
   // eslint-disable-next-line no-constant-condition
@@ -89,8 +98,15 @@ export function remove(id: Card['id']) {
   return http.delete<null>(`/cardspub/cards/${id}`)
 }
 
-export function removeEvent(uid: Card['processInstanceId']) {
-  return http.delete<null>(`/cab_event/api/v1/event/${uid}`)
+/**
+ * Deletes the event *and* its card (the event-service drops `cabProcess.{uid}`
+ * from the card publication service on its way out).
+ *
+ * @param silent suppress the generic error modal - used by bulk deletions that
+ *   report once instead of one popup per card
+ */
+export function removeEvent(uid: Card['processInstanceId'], silent = false) {
+  return http.delete<null>(`/cab_event/api/v1/event/${uid}`, { _silent: silent })
 }
 
 export function acknowledge(card: Card) {
