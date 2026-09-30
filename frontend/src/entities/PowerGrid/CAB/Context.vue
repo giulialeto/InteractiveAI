@@ -64,7 +64,7 @@ const context = computed(
 )
 
 onBeforeMount(async () => {
-  contextPID.value = await servicesStore.getContext('PowerGrid')
+  await servicesStore.getContext('PowerGrid')
   servicesStore.getParetoFront().catch(() => {})
 })
 
