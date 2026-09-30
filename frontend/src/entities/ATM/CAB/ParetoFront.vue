@@ -1,7 +1,7 @@
 <template>
   <div class="pareto-front flex flex-col">
     <p>{{ $t('ATM.pareto.help') }}</p>
-    <p>{{ $t('ATM.pareto.demo') }}</p>
+    <p v-if="front?.demo">{{ $t('ATM.pareto.demo') }}</p>
     <p v-if="switching" role="status">{{ $t('ATM.pareto.switching') }}</p>
     <p v-if="error" class="pareto-error" role="alert">{{ error }}</p>
     <p v-if="status === 'LOADING'">
