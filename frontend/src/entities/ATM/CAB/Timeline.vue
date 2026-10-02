@@ -1,7 +1,13 @@
 <template>
   <section class="cab-panel">
     <h1>{{ $t('cab.timeline') }} ({{ tzLabel }})</h1>
-    <Timeline v-slot="{ card }" :start="-60" :end="60" entity="ATM" :now="simNow">
+    <Timeline
+      v-slot="{ card }"
+      :start="-60"
+      :end="60"
+      entity="ATM"
+      :now="simNow"
+      :filter-fn="hideAircraftInfo">
       <SVG
         src="/img/icons/warning_hex.svg"
         :fill="`var(--color-${criticalityToColor(card.data.criticality)})`"
@@ -15,9 +21,14 @@ import { computed } from 'vue'
 import SVG from '@/components/atoms/SVG.vue'
 import Timeline from '@/components/organisms/Timeline.vue'
 import { useServicesStore } from '@/stores/services'
+import type { Card } from '@/types/cards'
 import { criticalityToColor } from '@/utils/utils'
 
 const servicesStore = useServicesStore()
+
+// The selected aircraft's "<ACID> Information" card is a live snapshot tied
+// to the map selection (see Context.vue), refreshed every tick. It is hidden from the timeline because it is on an event.
+const hideAircraftInfo = (card: Card<'ATM'>) => card.data.metadata.event_type !== 'AIRCRAFT_INFO'
 
 // Browser's own timezone abbreviation (e.g. "CET"/"CEST"), shown next to
 // the heading. The simulated clock itself is UTC-anchored but it is always rendered in local time, so this

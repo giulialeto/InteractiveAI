@@ -1,5 +1,6 @@
 export type AirplaneContext = {
-  id_plane: number;
+  // BlueSky's aircraft callsign (e.g. "AC1")
+  id_plane: string;
   Current_airspeed: number;
   Latitude: number;
   Longitude: number;

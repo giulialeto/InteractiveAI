@@ -143,12 +143,15 @@ const props = withDefaults(
     end: number
     groupFn?: (card: Card<E>) => string
     eventFn?: eventFnType<E>
+    /** Filter function to hide a card type that's live information, therefore doesn't belong to the timeline */
+    filterFn?: (card: Card<E>) => boolean
     entity: E
   }>(),
   {
     now: undefined,
     groupFn: () => '_DEFAULT',
-    eventFn: () => []
+    eventFn: () => [],
+    filterFn: () => true
   }
 )
 
@@ -174,6 +177,7 @@ const cards = computed(() =>
   groupBy(
     [...cardsStore.cards(props.entity)]
       .filter((c) => !c.data.parent_event_id)
+      .filter(props.filterFn)
       .sort(
         (a, b) =>
           CRITICALITIES.indexOf(b.data.criticality) - CRITICALITIES.indexOf(a.data.criticality)
