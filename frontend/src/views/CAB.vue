@@ -73,6 +73,7 @@ import { toggleMode } from '@/plugins/colorMode'
 import eventBus from '@/plugins/eventBus'
 import { useAppStore } from '@/stores/app'
 import { useCardsStore } from '@/stores/cards'
+import { useMapStore } from '@/stores/components/map'
 import { type Entity } from '@/types/entities'
 
 import DefaultAssistant from './CAB/DefaultAssistant.vue'
@@ -104,6 +105,7 @@ const route = useRoute()
 const { locale } = useI18n()
 const cardsStore = useCardsStore()
 const appStore = useAppStore()
+const mapStore = useMapStore()
 
 const leftPanel = ref<HTMLDivElement>()
 const rightPanel = ref<HTMLDivElement>()
@@ -183,6 +185,8 @@ function setup(entity: Entity) {
 function remove() {
   eventBus.off('graph:showTooltip')
   cardsStore.unsubscribe()
+  // the next scenario or entity starts from the default map view
+  mapStore.resetView()
 }
 
 onBeforeRouteUpdate((to) => {

@@ -12,6 +12,9 @@ export const useMapStore = defineStore('map', () => {
   // Id of the context waypoint (e.g. an ATM aircraft) currently selected via a
   // map click
   const selectedWaypointId = ref<string>()
+  // Pan and zoom of the map, saved when the map is left (e.g. for another tab) so that it reopens on the same view.
+  // Cleared with resetView() when leaving the CAB.
+  const view = ref<{ center: [number, number]; zoom: number }>()
 
   function reset() {
     resetWaypoints()
@@ -19,6 +22,10 @@ export const useMapStore = defineStore('map', () => {
     resetContextWaypoints()
     resetPolygons()
     selectedWaypointId.value = undefined
+  }
+
+  function resetView() {
+    view.value = undefined
   }
 
   // Clicking the already-selected waypoint deselects it.
@@ -88,7 +95,9 @@ export const useMapStore = defineStore('map', () => {
     contextWaypoints,
     polygons,
     selectedWaypointId,
+    view,
     reset,
+    resetView,
     selectWaypoint,
     addWaypoint,
     removeWaypoint,

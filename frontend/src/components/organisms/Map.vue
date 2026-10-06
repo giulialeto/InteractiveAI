@@ -1,5 +1,5 @@
 <template>
-  <LMap ref="map" v-model:zoom="zoom" :center="[47, 2]" :max-bounds-viscosity="0.5">
+  <LMap ref="map" v-model:zoom="zoom" :center="initialCenter" :max-bounds-viscosity="0.5">
     <LTileLayer
       v-for="tileLayer of tileLayers"
       :key="tileLayer"
@@ -124,7 +124,7 @@ import {
 } from '@vue-leaflet/vue-leaflet'
 import { latLngBounds } from 'leaflet'
 import { LocateFixed, LocateOff } from 'lucide-vue-next'
-import { onUnmounted, ref, watch } from 'vue'
+import { onBeforeUnmount, onUnmounted, ref, watch } from 'vue'
 
 import { useAppStore } from '@/stores/app'
 import { useMapStore } from '@/stores/components/map'
@@ -154,7 +154,9 @@ const PROTECTED_ZONE_RADIUS_NM = 5
 const PROTECTED_ZONE_RADIUS_M = PROTECTED_ZONE_RADIUS_NM * 1852
 
 const lockView = ref(true)
-const zoom = ref(6)
+// Start from the view saved when the map was last left (see onBeforeUnmount), else from the default one
+const initialCenter: [number, number] = mapStore.view ? [...mapStore.view.center] : [47, 2]
+const zoom = ref(mapStore.view?.zoom ?? 6)
 const map = ref()
 
 watch(
@@ -181,6 +183,14 @@ function toggleLockView() {
     })
   }
 }
+
+// Remember the pan and zoom when switching to another tab
+onBeforeUnmount(() => {
+  const leafletMap = map.value?.leafletObject
+  if (!leafletMap) return
+  const { lat, lng } = leafletMap.getCenter()
+  mapStore.view = { center: [lat, lng], zoom: leafletMap.getZoom() }
+})
 
 onUnmounted(() => {
   mapStore.reset()
