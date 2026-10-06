@@ -1,6 +1,21 @@
 <template>
   <div class="pareto-front flex flex-col">
-    <p>{{ $t('ATM.pareto.help') }}</p>
+    <p v-if="aircraft">{{ $t('ATM.pareto.helpAircraft', { id: aircraft }) }}</p>
+    <p v-else>{{ $t('ATM.pareto.help') }}</p>
+    <p v-if="aircraft" class="pareto-aircraft" role="status">
+      {{ policyStatus }}
+    </p>
+    <p v-if="aircraft && previewing" role="status">
+      {{ $t('ATM.pareto.previewing', { policy: previewId, id: aircraft }) }}
+    </p>
+    <p v-if="aircraft" class="pareto-actions">
+      <button v-if="canFix" :disabled="switching" @click="fixPolicy">
+        {{ $t('ATM.pareto.fixPolicy', { policy: targetPolicyId, id: aircraft }) }}
+      </button>
+      <button v-if="hasOwnPolicy" :disabled="switching" @click="useDefaultPolicy">
+        {{ $t('ATM.pareto.useDefault', { id: aircraft }) }}
+      </button>
+    </p>
     <p v-if="front?.demo">{{ $t('ATM.pareto.demo') }}</p>
     <p v-if="switching" role="status">{{ $t('ATM.pareto.switching') }}</p>
     <p v-if="error" class="pareto-error" role="alert">{{ error }}</p>
@@ -60,12 +75,12 @@
             v-for="point in front.points"
             :key="point.id"
             class="pareto-point"
-            :class="{ selected: point.id === selectedPolicyId }"
+            :class="{ selected: point.id === shownPolicyId, current: !!aircraft && point.id === effectivePolicyId }"
             :transform="`translate(${xScale(point.reward[xObjective.id])} ${yScale(point.reward[yObjective.id])})`"
             role="button"
             :tabindex="switching ? -1 : 0"
             :aria-disabled="switching"
-            :aria-pressed="point.id === selectedPolicyId"
+            :aria-pressed="point.id === shownPolicyId"
             :aria-label="$t('ATM.pareto.policy', { id: point.id })"
             @click="selectPolicy(point.id)"
             @keydown.enter.prevent="selectPolicy(point.id)"
@@ -74,7 +89,15 @@
           </g>
         </svg>
         <aside v-if="selectedPoint" class="pareto-details">
-          <h2>{{ $t('ATM.pareto.selected') }}</h2>
+          <h2>
+            {{
+              !aircraft
+                ? $t('ATM.pareto.selected')
+                : previewing
+                  ? $t('ATM.pareto.previewFor', { id: aircraft })
+                  : $t('ATM.pareto.selectedFor', { id: aircraft })
+            }}
+          </h2>
           <strong>{{ selectedPoint.checkpoint || $t('ATM.pareto.policy', { id: selectedPoint.id }) }}</strong>
           <h3>{{ $t('ATM.pareto.rewards') }}</h3>
           <dl>
@@ -90,6 +113,15 @@
               <dd>{{ formatNumber(selectedPoint.weights[objective.id]) }}</dd>
             </template>
           </dl>
+          <template v-if="assignments.length">
+            <h3>{{ $t('ATM.pareto.assigned') }}</h3>
+            <dl>
+              <template v-for="[acid, policyId] in assignments" :key="`assigned-${acid}`">
+                <dt>{{ acid }}</dt>
+                <dd>{{ $t('ATM.pareto.policy', { id: policyId }) }}</dd>
+              </template>
+            </dl>
+          </template>
         </aside>
       </div>
     </template>
@@ -97,14 +129,24 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { getATMParetoFront, selectATMPolicy, type ATMParetoFront } from '@/entities/ATM/paretoApi'
+import { useATMSelectionStore } from '@/entities/ATM/selection'
 import type { ParetoPoint } from '@/types/services'
+
+const { t } = useI18n()
+
+// Aircraft clicked on the map: while one is selected, the policy chosen is assigned only to that aircraft.
+const aircraft = computed(() => useATMSelectionStore().aircraftId)
 
 const front = ref<ATMParetoFront>()
 const selectedPolicyId = ref<number>()
+const aircraftPolicies = ref<Record<string, number>>({})
 const status = ref<'LOADING' | 'READY' | 'ERROR'>('LOADING')
+// Point clicked while an aircraft is selected: only shown, not applied until confirmed with the button.
+const previewId = ref<number>()
 const switching = ref(false)
 const error = ref('')
 
@@ -114,6 +156,7 @@ async function loadFront() {
   try {
     front.value = await getATMParetoFront()
     selectedPolicyId.value = front.value.selected_policy_id
+    aircraftPolicies.value = { ...(front.value.aircraft_policies ?? {}) }
     status.value = 'READY'
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : String(cause)
@@ -121,13 +164,16 @@ async function loadFront() {
   }
 }
 
-async function selectPolicy(id: number) {
+async function applyPolicy(id: number | null, fixed = false) {
   if (switching.value) return
   switching.value = true
   error.value = ''
+  const acid = aircraft.value
   try {
-    const result = await selectATMPolicy(id)
+    const result = await selectATMPolicy(id, acid, fixed)
     selectedPolicyId.value = result.selected_policy_id
+    aircraftPolicies.value = { ...result.aircraft_policies }
+    previewId.value = undefined
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : String(cause)
   } finally {
@@ -135,11 +181,52 @@ async function selectPolicy(id: number) {
   }
 }
 
+// With an aircraft selected, clicking a point previews the policy's weights and rewards achieved during training. The button above the plot confirmsthe selection.
+// With no aircraft selected, clicking a point sets the policy as default straight away
+function selectPolicy(id: number) {
+  if (aircraft.value) previewId.value = id
+  else applyPolicy(id)
+}
+// Return the clicked aircraft to the default policy
+const useDefaultPolicy = () => applyPolicy(null)
+// Fix the policy for the clicked aircraft
+const fixPolicy = () => {
+  if (targetPolicyId.value !== undefined) applyPolicy(targetPolicyId.value, true)
+}
+
+
+// Policy shown as selected: the clicked aircraft's own, else the default one
+const hasOwnPolicy = computed(() => !!aircraft.value && aircraft.value in aircraftPolicies.value)
+const effectivePolicyId = computed(() =>
+  aircraft.value && hasOwnPolicy.value ? aircraftPolicies.value[aircraft.value] : selectedPolicyId.value
+)
+// Policy shown in the plot and in the details: the previewed policy, else the aircraft's current one
+const shownPolicyId = computed(() => (aircraft.value ? previewId.value : undefined) ?? effectivePolicyId.value)
+const previewing = computed(() => previewId.value !== undefined && previewId.value !== effectivePolicyId.value)
+const targetPolicyId = shownPolicyId
+// if the policy is already fixed for the aircraft, on't show the 'fix policy' button
+const canFix = computed(
+  () =>
+    targetPolicyId.value !== undefined &&
+    !(hasOwnPolicy.value && aircraftPolicies.value[aircraft.value!] === targetPolicyId.value)
+)
+watch(aircraft, () => (previewId.value = undefined))
+const assignments = computed(() => Object.entries(aircraftPolicies.value))
+
+const policyStatus = computed(() => {
+  const id = aircraft.value
+  if (!id) return ''
+  if (!hasOwnPolicy.value) return t('ATM.pareto.defaultPolicy', { id })
+  return aircraftPolicies.value[id] === selectedPolicyId.value
+    ? t('ATM.pareto.ownPolicySame', { id })
+    : t('ATM.pareto.ownPolicy', { id })
+})
+
 onMounted(loadFront)
 const xObjective = computed(() => front.value!.objectives[0])
 const yObjective = computed(() => front.value!.objectives[1])
 const selectedPoint = computed(() =>
-  front.value?.points.find((point) => point.id === selectedPolicyId.value)
+  front.value?.points.find((point) => point.id === shownPolicyId.value)
 )
 
 const plot = { left: 80, right: 735, top: 25, bottom: 420 }
@@ -237,6 +324,10 @@ function tooltip(point: ParetoPoint) {
     fill: var(--color-primary);
     stroke-width: 7;
   }
+  // policy currently applied to the clicked aircraft while another point is previewed
+  &.current:not(.selected) circle {
+    stroke-dasharray: 5 4;
+  }
 }
 .pareto-details {
   align-self: center;
@@ -255,6 +346,9 @@ function tooltip(point: ParetoPoint) {
 }
 .pareto-error {
   color: var(--color-error);
+}
+.pareto-aircraft {
+  font-weight: 700;
 }
 @media (max-width: 900px) {
   .pareto-layout {

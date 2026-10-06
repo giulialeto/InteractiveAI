@@ -21,5 +21,15 @@
   "ATM.pareto.help": "Sélectionnez un point pour changer le checkpoint de tous les avions à la prochaine décision de l’agent.",
   "ATM.pareto.demo": "Démo : les cinq checkpoints sont des copies du même modèle. Les scores et les poids sont illustratifs ; le comportement est identique.",
   "ATM.pareto.switching": "Chargement du checkpoint…",
-  "ATM.pareto.retry": "Réessayer"
+  "ATM.pareto.helpAircraft": "Cliquez sur un point pour afficher les détails de la politique, puis confirmez avec le bouton pour fixer cette politique pour {id}. Les autres avions ne sont pas affectés.",
+  "ATM.pareto.selectedFor": "Politique sélectionnée pour {id}",
+  "ATM.pareto.ownPolicy": "{id} est contrôlé par une politique personnalisée fixée.",
+  "ATM.pareto.defaultPolicy": "{id} est contrôlé par la politique par défaut.",
+  "ATM.pareto.useDefault": "Utiliser la politique par défaut pour {id}",
+  "ATM.pareto.assigned": "Avions avec des politiques personnalisées fixées",
+  "ATM.pareto.ownPolicySame": "{id} est contrôlé par une politique personnalisée fixée (actuellement identique à la politique par défaut).",
+  "ATM.pareto.fixPolicy": "Fixer la politique {policy} pour {id}",
+  "ATM.pareto.retry": "Réessayer",
+  "ATM.pareto.previewFor": "Aperçu pour {id}. Remarque : pas encore fixée pour {id}.",
+  "ATM.pareto.previewing": "Aperçu de la politique {policy}. Remarque : pas encore fixée pour {id}."
 }

@@ -12,6 +12,7 @@ import Context from '@/components/organisms/CAB/Context.vue'
 import Map from '@/components/organisms/Map.vue'
 import ParetoFront from '@/entities/ATM/CAB/ParetoFront.vue'
 import { selectAircraft } from '@/entities/ATM/api'
+import { useATMSelectionStore } from '@/entities/ATM/selection'
 import type { AirplaneContext, LegacyContext, ContextType, ShapeContext } from '@/entities/ATM/types'
 import eventBus from '@/plugins/eventBus'
 import { useAppStore } from '@/stores/app'
@@ -22,6 +23,7 @@ import type { Polygon, Waypoint } from '@/types/components/map'
 const { t, locale } = useI18n()
 const servicesStore = useServicesStore()
 const mapStore = useMapStore()
+const atmSelection = useATMSelectionStore()
 const appStore = useAppStore()
 
 const faulty = ref(false)
@@ -30,6 +32,8 @@ const faulty = ref(false)
 // deselects it, clicking another switches to it)
 async function onAircraftClick(waypoint: Waypoint) {
   mapStore.selectWaypoint(waypoint.id)
+  // remember the aircraft selected on the map when switching to the Pareto front tab (the map store is cleared when the map tab is left)
+  atmSelection.aircraftId = mapStore.selectedWaypointId
   // the selected aircraft's information card is displayed at the top of
   // the Information list
   if (mapStore.selectedWaypointId) eventBus.emit('notifications:reveal')
@@ -172,6 +176,7 @@ onBeforeMount(async () => {
 })
 
 onUnmounted(() => {
+  atmSelection.aircraftId = undefined
   locale.value =
     window.navigator.language.split('-')[0] || import.meta.env.VITE_DEFAULT_LOCALE || 'en'
   servicesStore.stopContext()

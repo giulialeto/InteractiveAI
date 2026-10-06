@@ -20,5 +20,15 @@
   "ATM.pareto.help": "Select a point to switch the checkpoint controlling all aircraft at the next agent decision.",
   "ATM.pareto.demo": "Demo: all five checkpoints are copies of the same model. Reward scores and weights are illustrative; behaviour is identical.",
   "ATM.pareto.switching": "Loading checkpoint…",
-  "ATM.pareto.retry": "Retry"
+  "ATM.pareto.helpAircraft": "Click a point to preview the policy details, then confirm with the button to fix that policy for {id}. Other aircraft are not affected.",
+  "ATM.pareto.selectedFor": "Selected policy for {id}",
+  "ATM.pareto.ownPolicy": "{id} is controlled through a fixed custom policy.",
+  "ATM.pareto.defaultPolicy": "{id} is controlled through the default policy.",
+  "ATM.pareto.useDefault": "Use the default policy for {id}",
+  "ATM.pareto.assigned": "Aircraft with fixed custom policies",
+  "ATM.pareto.ownPolicySame": "{id} is controlled through a fixed custom policy (currently the same as the default policy).",
+  "ATM.pareto.fixPolicy": "Fix policy {policy} for {id}",
+  "ATM.pareto.retry": "Retry",
+  "ATM.pareto.previewFor": "Preview for {id}. Note: not yet fixed for {id}.",
+  "ATM.pareto.previewing": "Previewing policy {policy}. Note: not yet fixed for {id}."
 }
