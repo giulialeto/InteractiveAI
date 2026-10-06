@@ -13,8 +13,8 @@ export const useMapStore = defineStore('map', () => {
   // map click
   const selectedWaypointId = ref<string>()
   // Pan and zoom of the map, saved when the map is left (e.g. for another tab) so that it reopens on the same view.
-  // Cleared with resetView() when leaving the CAB.
-  const view = ref<{ center: [number, number]; zoom: number }>()
+  // Cleared with resetView() when the CAB is entered.
+  const view = ref<{ entity: string; center: [number, number]; zoom: number }>()
 
   function reset() {
     resetWaypoints()

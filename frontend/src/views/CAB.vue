@@ -170,6 +170,8 @@ function reset(panel: 'left' | 'right' | 'bottom') {
 setup(route.params.entity as Entity)
 
 function setup(entity: Entity) {
+  // entering the CAB from a login starts from the default map view
+  mapStore.resetView()
   // Failures are already reported by the http interceptor (or handled as a
   // session expiry); swallow the rejection so it does not leak to the console.
   cardsStore.subscribe(entity).catch(() => {})
@@ -185,8 +187,6 @@ function setup(entity: Entity) {
 function remove() {
   eventBus.off('graph:showTooltip')
   cardsStore.unsubscribe()
-  // the next scenario or entity starts from the default map view
-  mapStore.resetView()
 }
 
 onBeforeRouteUpdate((to) => {

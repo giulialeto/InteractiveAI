@@ -125,6 +125,7 @@ import {
 import { latLngBounds } from 'leaflet'
 import { LocateFixed, LocateOff } from 'lucide-vue-next'
 import { onBeforeUnmount, onUnmounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
 import { useAppStore } from '@/stores/app'
 import { useMapStore } from '@/stores/components/map'
@@ -145,6 +146,7 @@ const props = withDefaults(
   }
 )
 
+const route = useRoute()
 const mapStore = useMapStore()
 const appStore = useAppStore()
 
@@ -155,8 +157,9 @@ const PROTECTED_ZONE_RADIUS_M = PROTECTED_ZONE_RADIUS_NM * 1852
 
 const lockView = ref(true)
 // Start from the view saved when the map was last left (see onBeforeUnmount), else from the default one
-const initialCenter: [number, number] = mapStore.view ? [...mapStore.view.center] : [47, 2]
-const zoom = ref(mapStore.view?.zoom ?? 6)
+const savedView = mapStore.view?.entity === route.params.entity ? mapStore.view : undefined
+const initialCenter: [number, number] = savedView ? [...savedView.center] : [47, 2]
+const zoom = ref(savedView?.zoom ?? 6)
 const map = ref()
 
 watch(
@@ -189,7 +192,11 @@ onBeforeUnmount(() => {
   const leafletMap = map.value?.leafletObject
   if (!leafletMap) return
   const { lat, lng } = leafletMap.getCenter()
-  mapStore.view = { center: [lat, lng], zoom: leafletMap.getZoom() }
+  mapStore.view = {
+    entity: String(route.params.entity),
+    center: [lat, lng],
+    zoom: leafletMap.getZoom()
+  }
 })
 
 onUnmounted(() => {
